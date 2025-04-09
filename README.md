@@ -8,7 +8,7 @@ Rights of use and distribution are granted under the terms of the GNU Affero Gen
 
 # Acknowledgements
 
-La Trobe University Library is grateful to all who have contributed to this project. You can see who they are are at [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md)
+La Trobe University Library is grateful to [all who have contributed to this project](ACKNOWLEDGEMENTS.md).
 
 # Contact
 
@@ -41,8 +41,11 @@ The script operates on a report exported from Alma Analytics. To recreate it in 
     * Portfolio URL Information - Portfolio URL Type
     * Portfolio URL Information - Portfolio Parser Parameters
     * Electronic Collection URL Information - Electronic Collection Level URL
+
     *Filters*:
+    
     Filter to your requirements, e.g.
+
     * Electronic Collection Public Name is equal to / is in  CAUL OER Collective; La Trobe University eBureau; Milne Open Textbooks (Open SUNY Textbooks); OpenStax College; OAPEN
     * `AND`	 Availability is equal to / is in  Available
     * `AND`	 Lifecycle is equal to / is in  In Repository
@@ -81,6 +84,20 @@ e.g.
 ```sh
 uv run oer_cover_scraper.py alma_export.csv output_file.xslx
 ```
+
+## Importing the output file
+
+Once you have your output file, you need to do something with it!
+
+In Alma: 
+
+1. Click on `Resources > Import`. 
+2. Locate the Load cover images import profile.
+3. Click on the ellipsis button and select Run.
+4. Select the spreadsheet as the file to load.
+5. Click Submit.
+
+The job will add the 956 field to matching bibliographic records. This may take a few hours to show up in your discovery interface.
 
 ## Logging
 
