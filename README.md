@@ -10,13 +10,15 @@ Rights of use and distribution are granted under the terms of the GNU Affero Gen
 
 La Trobe University Library is grateful to [all who have contributed to this project](ACKNOWLEDGEMENTS.md).
 
+Ruth Lewis provided the instructions for export and import of Alma data.
+
 # Contact
 
 The maintainer of this repository is Hugh Rundle, who can be contacted at h.rundle@latrobe.edu.au
 
 # Description 
 
-This is a basic Python script for scraping book covers for Open Educational Resources for import into Ex Libris Alma.
+This is a set of basic Python scripts for scraping book covers for Open Educational Resources for import into Ex Libris Alma.
 
 The script takes an input file which should be an export from Alma converted to CSV format.
 
@@ -74,16 +76,23 @@ FETCH FIRST 10000001 ROWS ONLY
 
 Then run the script from a terminal/PowerShell:
 
-`uv run oer_cover_scraper.py inputfilename outputfilename` 
+```sh
+uv run oer_covers.py inputfilename outputfilename
+```
 
 _inputfilename_ should be your file exported from Alma and converted to csv.
-_outputfilename_ should be a new `.xslx` filename that will contain the output.
+_outputfilename_ should be a new `.xlsx` filename that will contain the output.
 
 e.g.
 
 ```sh
-uv run oer_cover_scraper.py alma_export.csv output_file.xslx
+uv run oer_covers.py alma_export.csv output_file.xlsx
 ```
+
+You should end up with an Excel file with two tabs:
+
+* `covers_for_upload` is for importing back into Alma (see below)
+* `errors` will contain a list of any resources where some kind of HTTP or connection error occured. This may indicate that the URL you have in Alma is out of date, broken, or otherwise needs attention.  
 
 ## Importing the output file
 
@@ -97,24 +106,38 @@ In Alma:
 4. Select the spreadsheet as the file to load.
 5. Click Submit.
 
-The job will add the 956 field to matching bibliographic records. This may take a few hours to show up in your discovery interface.
+The job will add the URL for the cover image to the 956 field in matching bibliographic records. This may take a few hours to show up in your discovery interface.
 
 ## Logging
 
-The script will spit out errors including HTTP errors. You might like to send them to a log file rather than your terminal:
+The script will spit out any additional errors. You might like to send them to a log file rather than your terminal:
 
 ```sh
-uv run oer_cover_scraper.py source_file.csv output_file.xslx >> logfile.txt
+uv run oer_covers.py source_file.csv output_file.xlsx >> logfile.txt
 ```
+
+## Retrying errors
+
+You may get errors for some links. These will be saved in the second `errors` tab in your output file.
+
+You may wish to attempt these again, especially if you got a lot of `429` "Too many requests" errors. To do this, you can use the `retry_errors.py` file. Save the `errors` tab as a new csv file, then run `retry_errors.py` with this new CSV file as your input:
+
+```sh
+uv run retry_errors.py errors.csv output_file.xlsx >> logfile.txt
+```
+
+This script deliberately runs slower than `oer_covers.py` (to avoid `429` errors, which may be what you got originally) and expects your csv file to be structured like the `errors` tab in an output file. To upload the output from this run, follow the same procedure outlined in _Importing the output file_, above.
 
 ## Image sources
 
 Currently this will only work for books from:
 
-* latrobe.edu.au
-* library.oapen.org
-* milneopentextbooks.org
-* oercollective.caul.edu.au
+* latrobe.edu.au (La Trobe eBureau)
+* library.oapen.org (OAPEN)
+* milneopentextbooks.org & milnepublishing.geneseo.edu (Milne Library Open Publishing, SUNY)
+* oercollective.caul.edu.au (CAUL OER Collective)
+* open.umn.edu (Open Textbook Library)
+* jcu.pressbooks.pub (James Cook University)
 
 You can add your own or log an Issue with a request for a new source. 
-Note that Rice University inexplicably reserves all copyrights on OpenStax book covers, so they cannot be used.
+Note that Rice University inexplicably reserves all rights on OpenStax book covers, so they cannot be used, even though the rest of the book is CC licensed.
