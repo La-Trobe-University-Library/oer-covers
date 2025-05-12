@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 import csv
-from multiprocessing import Pool
 import requests
 import sys
 import time
@@ -12,20 +11,15 @@ def get_cover_image(row):
     """find the URL of the cover image and add it to a row in the export file"""
 
     # for each link, use Beautiful Soup to find the image URL
-    for key in ["Portfolio Static URL", "Portfolio Static URL (override)", "Portfolio Parser Parameters"]:
-        if row[key]:
-            raw_url = row[key][5:].strip() # remove 'jkey=' or 'bkey=' and any spaces on either end
-            url = raw_url.split(" ")[0] # remove anything after the URL e.g. providerid from parser parameters
-        else:
-            # it's empty
-            continue
+    if row["URL"]:
+        raw_url = row["URL"].strip() # remove any spaces on either end
+        url = raw_url.split(" ")[0] # remove anything after the URL e.g. providerid from parser parameters
 
         try:
 
             if "open.umn.edu" in url: # OTL is rate-limited, avoid 429 errors by slowing down
                 time.sleep(1) 
-
-            headers = {"user-agent": "OER-Covers-Fetcher/0.0.3"} # don't use a generic user agent
+            headers = {"user-agent": "OER-Covers-Retry/0.0.1"} # don't use a generic user agent
             page = requests.get(url, headers=headers)
             page.raise_for_status() # raise the error immediately if we didn't get a successful page load
             soup = BeautifulSoup(page.content, "html.parser")
@@ -43,9 +37,9 @@ def get_cover_image(row):
                 if len(sources) > 0:
                     source = sources[0]
                 else:
-                    continue 
+                    return 
 
-            elif "milneopentextbooks.org" in url: # Milne Library Publishing at SUNY Geneseo
+            elif "milneopentextbooks.org" in url: #Milne Library Publishing at SUNY Geneseo
                 figures = soup.find_all("figure")
                 for fig in figures:
                     if fig.find("img") and "wp-content/uploads" in fig.find("img")["src"]:
@@ -56,26 +50,27 @@ def get_cover_image(row):
                 raw_source = soup.find("img", class_="img-thumbnail")["src"]
                 source = f"https://library.oapen.org/{raw_source}"
 
+
             elif "open.umn.edu" in url: # Open Textbook Library
                 source = soup.find("div", id="cover").find("img")["src"]
+
                 if "placeholder" in source:
-                    continue # don't bother with the relative placeholder paths from OTL
+                    return # don't bother with the relative placeholder paths from OTL
 
             elif "openstax.org" in url: # OpenStax
                 # openstax book covers are All Rights Reserved Rice University
                 # so cannot be used
-                continue
+                return
 
             else:
                 # we don't know about that source - log an issue so it can be added :)
                 p = urlparse(url)
                 print(f"Cannot parse from this OER source: {p.hostname}")
-                continue
-        
-            # add the image url to the entry for that book
-            data = (str(row["MMS Id"]), source, "Thumbnail", "local", row["Title"])
-            return {"type": "cover", "data": data}
+                return
 
+            # add the image url to the entry for that book
+            data = (str(row["MMS Id"]), source, "Thumbnail", "local", str(row["MMS Id"]))
+            return {"type": "cover", "data": data}
 
         except requests.exceptions.HTTPError:
 
@@ -94,9 +89,12 @@ def get_cover_image(row):
         except Exception as e:
 
             # Something else went wrong
-            print(row["Title"], type(e), e)
-            continue
+            print(row["MMS Id"], type(e), e)
+            return
 
+    else:
+        # it's empty
+        return
 
 if __name__ == '__main__':
     """When the script is called..."""
@@ -110,22 +108,22 @@ if __name__ == '__main__':
     workbook = xlsxwriter.Workbook(output_file)
     
     worksheet = workbook.add_worksheet("covers_for_upload")
-    worksheet.write_row("A1", ("001","95642$u", "95642$3","95642$9","Title"))
+    worksheet.write_row("A1", ("001","95642$u", "95642$3","95642$9","MMS Id"))
 
     errors = workbook.add_worksheet("errors") 
-    errors.write_row("A1", (str("MMS Id"), "URL", "Error code")) 
+    errors.write_row("A1", ("MMS Id", "URL", "Error code")) 
 
     #  read csv of book URLs
     with open(source_file, "r") as csvfile:
         reader = csv.DictReader(csvfile)
 
-        pool = Pool(2) # uses only 2 processes. Too many and you will get rate limited    
         index = 2
         error_index = 2
 
-        # run get_cover_image() for each row, multi-threaded
-        for value in pool.map(get_cover_image, reader):
-                
+        # run get_cover_image() for each row, the slow way
+        # the most likely errors are 404 and 429
+        for row in reader:
+            value = get_cover_image(row)
             if value:
                 if value.get("type") == "error":
                     errors.write_row(f"A{error_index}", value["data"])
@@ -134,9 +132,4 @@ if __name__ == '__main__':
                     worksheet.write_row(f"A{index}", value["data"])
                     index += 1
 
-        # remember to close the multprocessing pool
-        pool.close() 
-        pool.join()
-
     workbook.close()
-    
