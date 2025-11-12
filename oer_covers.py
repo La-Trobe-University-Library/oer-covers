@@ -116,7 +116,7 @@ if __name__ == '__main__':
     errors.write_row("A1", (str("MMS Id"), "URL", "Error code")) 
 
     #  read csv of book URLs
-    with open(source_file, "r") as csvfile:
+    with open(source_file, "r", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
 
         pool = Pool(2) # uses only 2 processes. Too many and you will get rate limited    
